@@ -7,22 +7,16 @@ import readline from 'readline';
 
 export async function readComponentCode(componentPath: string): Promise<string> {
     const componentCode = await readFile(`${componentPath}`, "utf-8");
-    console.log('Component code read successfully');
+    console.log(chalk.green(`✔ Component ${componentPath} read successfully`));
     return componentCode;
 }
 
 export async function writeTransformedCode(appDir: string, filePath: string, content: string) {
-    console.log(`Writing transformed code to ${filePath}...`);
-    
     const fullPath = path.join(appDir, filePath);
-    
     // Ensure the directory exists
     await mkdir(path.dirname(fullPath), { recursive: true });
-    
     // Write the file
     await writeFile(fullPath, content);
-    
-    console.log(`Transformed code written to ${fullPath}`);
 }
 
 // Load OpenAI API key from config file
@@ -46,12 +40,13 @@ export const askQuestion = (question: string): Promise<boolean> => {
       input: process.stdin,
       output: process.stdout
     });
-  
+
     return new Promise((resolve) => {
-      rl.question(`${chalk.cyan('?')} ${question} › (Y/n) `, (answer) => {
+      rl.question(`? ${question} › ${chalk.gray('(y/N)')} `, (answer) => {
         rl.close();
+        process.stdout.write('\r\x1b[K'); // Clear the line
         const normalizedAnswer = answer.trim().toLowerCase();
-        resolve(normalizedAnswer === '' || normalizedAnswer === 'y' || normalizedAnswer === 'yes');
+        resolve(normalizedAnswer === 'y');
       });
     });
   };

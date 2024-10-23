@@ -1,73 +1,97 @@
 import { OpenAI } from "openai";
-import { DATA_FETCHING_NEXT_14 } from "../../../src/constants";
 import chalk from "chalk";
+import type { ChatCompletionMessageParam } from "openai/src/resources/chat/completions.js";
 
-export async function identifyDynamicElements(client: OpenAI, componentCode: string, parentComponentName: string, componentName: string): Promise<string> {
-  console.log(chalk.blue("Step 1: Identifying dynamic elements..."));
-  
-  const steps = [
-    "Analyzing component structure",
-    "Identifying static text",
-    "Determining prop candidates",
-    "Planning API structure",
-    "Finalizing refactoring strategy"
+export async function identifyDynamicElements(client: OpenAI, componentCode: string, parentComponentName: string, componentName: string): Promise<any> {
+  console.log(chalk.blue("🔍 Analyzing component structure..."));
+
+  const initialMessages: ChatCompletionMessageParam[] = [
+    {
+        role: "user",
+        content: `
+        Describe the React Component located in @/components/${componentName}.tsx and its purpose.
+
+        ## React Component
+        ${componentCode}
+        `
+    },
   ];
 
-  const refactoringInstructions = await client.chat.completions.create({
+  const reactComponentDescription = await client.chat.completions.create({
+    model: "o1-preview",
+    messages: initialMessages
+  });
+
+  const content = reactComponentDescription.choices[0].message.content
+  
+  console.log(chalk.blue("🧠 Identifying refactoring steps..."));
+
+  const instructions = await client.chat.completions.create({
     model: "o1-preview",
     messages: [
-        {
-            role: "user",
-            content: `
-            You are a Code Assistant. Your function is to refactor the React Component code based on the user's instructions.
-            Your task is to turn the static text in the React Component provided into props so the component can be reused and receive data from the database.
+      ...initialMessages,
+      {
+        role: "assistant",
+        content: content
+      },
+      {
+          role: "user",
+          content: `
+          Given the React Component Description, How would you use a Postgres database, Drizzle ORM, with this React component using Next.js 14? 
+          Include: 
+           1. the data model definition: The database schema and Drizzle ORM model, 
+           2. modifications on the main react component, and 
+           3. backend logic: API route and data-fetching logic.
 
-            For that you will: 
-            1. Create three files:
-            - app/api/${parentComponentName}/route.tsx
-            - app/${parentComponentName}/page.tsx
-            - @/components/${componentName}.tsx
-            2. Generate the refactored component and extract the props.
-            3. Generate the file to fetch data.
-            4. Generate the parent component that makes the API call and passes the data to the refactored component.
+          Explain your logic. No code or SQL is needed.
+          Feel free to add new files and folders as needed.
 
-            Explain how you make the changes requested.
+          ## Project Structure
+          The project structure is as follows:
 
-            A few rules:
-            - Use Typescript syntax.
-            - Use Next.js 14 syntax. A few Next.js examples are provided.
-            - Make sure to accomplish your task by making as few changes to the React Component as possible without changing the logic.
-            - Only extract text that makes sense to store in a prop and a database. Do not extract button text, link text, or other non-data text.
-            - Do not refactor style or layout code.
-            - Ensure that the refactored component is reusable and can handle varying data inputs.
-            - Ensure that the code is correct and works.
+          📦 <project root>
+          └ 📂 app
+              └ 📂 api
+              └ page.tsx
+          └ 📂 components
+              └ 📂 ui
+              └ ${componentName}.tsx
+          └ 📂 db
+              └ 📜 schema.ts
 
-            Next.js 14 examples:
-            ${DATA_FETCHING_NEXT_14}
-`
-        },
-        {
-            role: "user",
-            content: `Refactor the React Component and turn the static text into props so the component can be reused. React Component: ${componentCode}`
-        },
-        {
-            role: "user",
-            content: `Generate the parent component located in app/${parentComponentName}/page.tsx that will use the refactored component. The child component is located in @/components/${componentName}.tsx.`
-        },
-        {
-            role: "user",
-            content: `Generate the API located in app/api/${parentComponentName}/route.tsx that will be called by the refactored component's parent component. The child component is located in @/components/${componentName}.tsx.`
-        },
+
+          ## Output in JSON format.
+          {
+            "overview": "string",
+            "database-model-definition": {
+              "overview": "string",
+              "database-schema": "string",
+              "drizzle-orm-model": "string"
+            },
+            "modifications-on-main-react-component": {
+              "overview": "string",
+              "steps": "string"
+            },
+            "api-route-logic": {
+              "overview": "string",
+              "file-path": "string", // strictly contains the file path of the API route. reply null if no API route is needed.
+              "steps": "string",
+            },
+            "data-fetching-logic": {
+              "overview": "string",
+              "file-path": "string", // strictly contains the file path of the data-fetching component. reply null if no data-fetching component is needed.
+              "steps": "string"
+            },
+            "summary": "string"
+          }
+
+          Don't include \`\`\`json in your response.
+          `
+      },
     ],
   });
 
-  steps.forEach((step, index) => {
-    console.log(chalk.green(`✔ ${step}`));
-    // Simulate progress with a small delay
-    Bun.sleep(500);
-  });
-
-  const result = refactoringInstructions.choices[0].message.content ?? '';
+  const result = instructions.choices[0].message.content ?? '';
   console.log(chalk.green("✔ Refactoring steps identified"));
-  return result;
+  return JSON.parse(result);
 }

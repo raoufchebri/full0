@@ -1,26 +1,40 @@
 import { OpenAI } from "openai";
-import { DATA_FETCHING_NEXT_14, MODEL, TEMPERATURE } from "../../../src/constants";
+import { DATA_FETCHING_NEXT_14, DRIZZLE_DATA_TYPES, DRIZZLE_SCHEMA_EXAMPLES, MODEL, TEMPERATURE } from "../../../src/constants";
+import chalk from "chalk";
 
-export async function generateDrizzleSchema(client: OpenAI, refactoredCode: string, refactoringSteps: string, parentComponentName: string): Promise<string> {
-    console.log("Step 3: Generating Drizzle Schema...");
+export async function generateDrizzleSchema(client: OpenAI, refactoredCode: string, databaseModelDefinition: {overview: string, databaseSchema: string, drizzleOrmModel: string}, parentComponentName: string): Promise<string> {
+    console.log(chalk.blue("🔄 Generating Drizzle Schema..."));
+    console.log(chalk.gray(databaseModelDefinition.overview));
+
     const drizzleSchema = await client.chat.completions.create({
       model: MODEL,
       messages: [
           {
               role: "system",
               content: `
-           You are an Code Assistant. Your function to generate the Drizzle Schema based on the API and React Component provided.
+           You are an Code Assistant. Your function to generate the Drizzle Schema based on Database Schema and Drizzle ORM Model provided.
            Only make the changes requested by the user.
            Use Typescript syntax.
            Use Drizzle ORM syntax. 
-  
-           Add this line at the top of the file when using useState, useEffect, etc.
-           
-           "use client"
-  
-           Next.js 14 examples:
-           ${DATA_FETCHING_NEXT_14}
            `
+          },
+          {
+              role: "user",
+              content: `Task Summary: ${databaseModelDefinition.overview}`
+          },
+          {
+              role: "user",
+              content: `
+              Database Schema: 
+              ______________________________________________________________________________________
+              ${databaseModelDefinition.databaseSchema}
+              ______________________________________________________________________________________
+              
+              Drizzle ORM Model:
+              ______________________________________________________________________________________
+              ${databaseModelDefinition.drizzleOrmModel}
+              ______________________________________________________________________________________
+              `
           },
           {
               role: "user",
@@ -28,13 +42,8 @@ export async function generateDrizzleSchema(client: OpenAI, refactoredCode: stri
           },
           {
               role: "user",
-              content: `Additional Context: ${refactoringSteps}`
-          },
-          {
-              role: "user",
               content: `
-           Based on the React Component and the API, generate a Drizzle Schema. Declare your SQL schema directly in TypeScript in schema.ts file.
-           Don't include \`\`\`tsx or \`\`\`javascript in your code response.
+           Based on the instructions provided, declare the Drizzle ORM schema directly in TypeScript in schema.ts file.
   
           📦 <project root>
           └ 📂 app
@@ -44,36 +53,25 @@ export async function generateDrizzleSchema(client: OpenAI, refactoredCode: stri
           └ 📂 db
               └ 📜 schema.ts
           
-          Example:
-           \`\`\`typescript
-          import { integer, pgEnum, pgTable, serial, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
-  
-          // declaring enum in database
-          export const popularityEnum = pgEnum('popularity', ['unknown', 'known', 'popular']);
-  
-          export const countries = pgTable('countries', {
-          id: serial('id').primaryKey(),
-          name: varchar('name', { length: 256 }),
-          }, (countries) => {
-          return {
-              nameIndex: uniqueIndex('name_idx').on(countries.name),
-          }
-          });
-  
-          export const cities = pgTable('cities', {
-          id: serial('id').primaryKey(),
-          name: varchar('name', { length: 256 }),
-          countryId: integer('country_id').references(() => countries.id),
-          popularity: popularityEnum('popularity'),
-          });
-          \`\`\`
-           
+          Drizzle Schema Example:
+          ______________________________________________________________________________________
+          ${DRIZZLE_SCHEMA_EXAMPLES}
+          ______________________________________________________________________________________
+
+          Drizzle ORM Data Types:
+          ______________________________________________________________________________________
+          ${DRIZZLE_DATA_TYPES}
+              
            `
           },
+          {
+            role: "user",
+            content: `Don't include \`\`\`typescript or \`\`\`javascript in your code response.`
+          }
       ],
       temperature: TEMPERATURE
     });
     const schema = drizzleSchema.choices[0].message.content ?? '';
-    console.log(`Drizzle Schema generated`);
+    console.log(chalk.green("✔ Drizzle Schema generated"));
     return schema;
   }

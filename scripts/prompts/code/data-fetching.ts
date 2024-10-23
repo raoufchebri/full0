@@ -1,7 +1,7 @@
 import { OpenAI } from "openai";
 import { TEMPERATURE, DATA_FETCHING_NEXT_14 } from "../../../src/constants";
 
-export async function generateParentComponent(client: OpenAI, refactoredCode: string, apiCode: string, refactoringSteps: string, parentComponentName: string, componentName: string): Promise<string> {
+export async function generateParentComponent(client: OpenAI, refactoredCode: string, apiCode: string, refactoringSteps: {overview: string, filePath: string, steps: string}): Promise<string> {
     console.log("Step 5: Generating parent component...");
     const parentComponent = await client.chat.completions.create({
       model: "gpt-4o-2024-08-06",
@@ -12,15 +12,12 @@ export async function generateParentComponent(client: OpenAI, refactoredCode: st
            You are an Code Assistant. Your function to refactor the React Component code based on the user's instructions.
            Only make the changes requested by the user.
            Use Typescript syntax.
-           Use Next.js 14 syntax. 
-  
-           Add this line at the top of the file when using useState, useEffect, etc.
-           
-           "use client"
-  
-           Next.js 14 examples:
-           ${DATA_FETCHING_NEXT_14}
+           Use Next.js 14 syntax. Examples are below.
            `
+          },
+          {
+              role: "user",
+              content: `Refactoring Steps: ${refactoringSteps.overview}`
           },
           {
               role: "user",
@@ -28,7 +25,7 @@ export async function generateParentComponent(client: OpenAI, refactoredCode: st
           },
           {
               role: "assistant",
-              content: `Additional Instructions: ${refactoringSteps}`
+              content: `Additional Instructions: ${refactoringSteps.steps}`
           },
           {
               role: "user",
@@ -37,9 +34,22 @@ export async function generateParentComponent(client: OpenAI, refactoredCode: st
           {
               role: "user",
               content: `
-           Based on the React Component and the API, generate a parent component located in app/${parentComponentName}/page.tsx that will use the refactored component. 
-           The child component is located in @/components/${componentName}.tsx. Don't include \`\`\`tsx or \`\`\`javascript in your code response.`
-          },
+              
+              Add this line at the top of the file when using useState, useEffect, etc.
+              
+              "use client"
+              
+              Next.js 14 examples:
+              ______________________
+              ${DATA_FETCHING_NEXT_14}
+              `
+            },
+            {
+                role: "user",
+                content: `
+                      Don't include \`\`\`tsx or \`\`\`javascript in your code response.
+                  `
+            },
       ],
       temperature: TEMPERATURE
     });
